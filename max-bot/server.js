@@ -1,130 +1,30 @@
-const express = require('express');
+// Legacy webhook server kept for reference. Disabled by default because
+// the canonical bot entrypoint is `bot.js` (long-polling). To run a
+// webhook server instead, set WEBHOOK_ENABLED=1 and provide WEBHOOK_URL.
+
+import express from 'express';
+import { BOT_CONFIG } from './src/config.js';
+
 const app = express();
 app.use(express.json());
 
-const BOT_TOKEN = "f9LHodD0cOJKZpS4mwl-etS2LBy2AT6YNLTnE4MNr4DIymGKEXo1Xc9v1m05q7zS_eci41H2P8Mp8MaFuzpt";
+app.get('/', (_req, res) => res.send('🤖 InfoPulse legacy webhook — use bot.js'));
 
-// Обработчик вебхуков
-app.post('/webhook', async (req, res) => {
-    console.log('📨 Получен вебхук:', req.body.update_type);
-    
-    try {
-        const update = req.body;
-        
-        if (update.update_type === 'message_created') {
-            const message = update.message;
-            const text = message.body.text.toLowerCase();
-            
-            let responseText = '';
-            
-            if (text.includes('привет') || text.includes('start') || text.includes('/start')) {
-                responseText = `Привет! Я бот ИнфоПульс! 📰
+if (process.env.WEBHOOK_ENABLED === '1' && process.env.WEBHOOK_URL) {
+  app.post('/webhook', (req, res) => {
+    console.log('webhook payload:', req.body);
+    res.status(200).send('OK');
+  });
 
-Я помогаю находить социально значимые новости и возможности для участия.
+  const PORT = process.env.WEBHOOK_PORT || 3001;
+  app.listen(PORT, () =>
+    console.log(`🚀 Webhook server on :${PORT} → ${process.env.WEBHOOK_URL}`),
+  );
+} else {
+  console.log(
+    'ℹ️  server.js loaded in stub mode (set WEBHOOK_ENABLED=1 to run a real webhook).',
+  );
+}
 
-🔹 **Что я умею:**
-• Персонализированная лента новостей
-• Новости по экологии, благотворительности, инклюзивности
-• Прямые ссылки для помощи
-
-🔹 **Команды:**
-"новости" - показать последние новости
-"категории" - выбрать интересы
-"помощь" - справка
-
-Откройте мини-приложение для полного доступа!`;
-            } 
-            else if (text.includes('новости') || text.includes('news')) {
-                responseText = `📊 **Последние новости:**
-
-🌱 *Экология*
-• Волонтеры очистили 5 км берега Байкала
-• Запущен новый проект по переработке пластика
-
-❤️ *Благотворительность* 
-• Сбор средств для детского дома завершен на 80%
-• Благотворительный забег собрал 500+ участников
-
-♿ *Инклюзивность*
-• Открыта доступная среда в центральном парке
-• Инклюзивный театр представил новый спектакль
-
-💻 *Цифровое просвещение*
-• Бесплатные курсы программирования для подростков
-• Цифровая грамотность для старшего поколения
-
-*Откройте мини-приложение для персонализированной ленты!*`;
-            }
-            else if (text.includes('категории') || text.includes('интересы')) {
-                responseText = `🎯 **Доступные категории:**
-
-🌱 Экология - защита окружающей среды
-❤️ Благотворительность - помощь нуждающимся  
-♿ Инклюзивность - равные возможности для всех
-💻 Цифровое просвещение - технологии и образование
-
-*Выберите до 3 категорий в мини-приложении!*`;
-            }
-            else if (text.includes('помощь') || text.includes('help')) {
-                responseText = `🆘 **Помощь по боту ИнфоПульс**
-
-🔹 *Основные команды:*
-"привет" / "start" - начать работу
-"новости" - показать последние новости  
-"категории" - список категорий
-"помощь" - эта справка
-
-🔹 *Мини-приложение:*
-Откройте мини-приложение для:
-• Персонализированной ленты новостей
-• Выбора интересующих категорий
-• Прямых ссылок для участия в проектах
-• Поиска и фильтрации новостей
-
-🔹 *Категории новостей:*
-Экология, Благотворительность, Инклюзивность, Цифровое просвещение`;
-            }
-            else {
-                responseText = `Я понял ваш запрос! 🤖
-
-Попробуйте одну из команд:
-• "Новости" - актуальные события
-• "Категории" - выбор интересов  
-• "Помощь" - подробная справка
-
-Или откройте мини-приложение для полного функционала с персонализированной лентой! 📱`;
-            }
-            
-            // Отправляем ответ
-            const response = await fetch('https://platform-api.max.ru/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': BOT_TOKEN
-                },
-                body: JSON.stringify({
-                    chat_id: message.recipient.chat_id,
-                    text: responseText,
-                    format: "markdown"
-                })
-            });
-            
-            console.log('✅ Ответ отправлен');
-        }
-        
-        res.status(200).send('OK');
-    } catch (error) {
-        console.error('❌ Ошибка вебхука:', error);
-        res.status(500).send('Error');
-    }
-});
-
-// Стартовая страница
-app.get('/', (req, res) => {
-    res.send('🤖 Бот ИнфоПульс активен!');
-});
-
-const PORT = 3001;
-app.listen(PORT, () => {
-    console.log(`🚀 Бот сервер запущен на порту ${PORT}`);
-});
+// Prevent unused import warning when in stub mode.
+void BOT_CONFIG;
