@@ -1,132 +1,86 @@
 import { MainKeyboards } from './mainKeyboards.js';
-import { BOT_CONFIG } from './config.js';
+import { NEWS_CATEGORIES } from './config.js';
+import { NewsService } from './services/newsService.js';
 
-export class CommandHandlers {
-  static async start(ctx) {
-    const welcomeText = `👋 *Добро пожаловать в InfoPulse MAX Bot!*
+const greet = (name) => `Привет${name ? `, ${name}` : ''}! 👋`;
 
-🤖 *Я ваш AI-помощник для поиска новостей*
+export const CommandHandlers = {
+  async start(ctx) {
+    const name = ctx.user?.first_name || ctx.user?.username;
+    const text = `${greet(name)} Я *ИнфоПульс* 📰 — новостной агрегатор.
 
-✨ *Что я умею:*
-• 🔍 Искать свежие новости по любой теме
-• 📊 Показывать trending темы
-• 💡 Предлагать интересные категории
-• 🤖 Отвечать на ваши вопросы
+Отправьте любой текст — найду свежие новости.
+Или выберите категорию ниже 👇`;
 
-💬 *Просто напишите мне, что вас интересует, и я найду самые актуальные новости!*`;
-
-    await ctx.reply(welcomeText, {
+    return ctx.reply(text, {
       format: 'markdown',
-      attachments: [MainKeyboards.getMainMenu()]
+      attachments: [MainKeyboards.getMainKeyboard()],
     });
-  }
+  },
 
-  static async help(ctx) {
-    const helpText = `📖 *Помощь по InfoPulse Bot*
+  async help(ctx) {
+    return ctx.reply(
+      `*ИнфоПульс — справка* ℹ️
 
-*Основные команды:*
-/start - Главное меню
-/help - Эта справка  
-/chat - Начать общение с ботом
+*Команды:*
+/start — главное меню
+/help — эта справка
+/tech · /sports · /politics · /business · /science — новости по категориям
+/chat — режим чата с AI
+/settings — настройки
+/myid — ваш ID
+/admin — админ-панель (если вы админ)
 
-*Что я могу найти:*
-• Новости по технологиям, спорту, политике
-• Актуальные события в мире
-• Trending темы
-• Специфические запросы
+*Как искать:*
+Просто напишите запрос обычным текстом — например:
+• *искусственный интеллект*
+• *новости спорта*
+• *что нового в космосе*
 
-*Примеры запросов:*
-"новости о технологиях"
-"что происходит в спорте" 
-"последние политические события"
-"искусственный интеллект 2024"
+*Настройка источников:*
+В .env задайте NEWS_PROVIDER=gnews и NEWS_API_KEY=... — тогда бот тянет реальные новости. Без ключа работает демо-режим.`,
+      { format: 'markdown', attachments: [MainKeyboards.getMainKeyboard()] },
+    );
+  },
 
-💡 *Просто напишите тему, и я найду свежие новости!*`;
+  async chat(ctx) {
+    return ctx.reply(
+      `💬 *Режим чата*\n\nНапишите любой запрос — найду свежие новости по теме.`,
+      { format: 'markdown', attachments: [MainKeyboards.getCategoryKeyboard()] },
+    );
+  },
 
-    await ctx.reply(helpText, {
-      format: 'markdown',
-      attachments: [MainKeyboards.getMainMenu()]
-    });
-  }
+  async settings(ctx) {
+    return ctx.reply(
+      `⚙️ *Настройки*\n\nУправляйте уведомлениями и темой.`,
+      {
+        format: 'markdown',
+        attachments: [MainKeyboards.getSettingsKeyboard(true)],
+      },
+    );
+  },
 
-  static async config(ctx) {
-  const configText = `⚙️ *Конфигурация бота*
-
-*Токен:* ${BOT_CONFIG.BOT_TOKEN ? '✅ Установлен' : '❌ Отсутствует'}
-*Админы:* ${BOT_CONFIG.ADMIN_IDS.join(', ') || 'не указаны'}
-*Режим:* ${BOT_CONFIG.NODE_ENV}
-*WEB_APP_URL:* ${BOT_CONFIG.WEB_APP_URL || 'не установлен'}
-
-*Ваш ID:* ${ctx.user?.user_id}
-*Админ статус:* ${ctx.isAdmin ? '✅ Да' : '❌ Нет'}
-
-*Путь к .env:* max-bot/.env`;
-
-  await ctx.reply(configText, { format: 'markdown' });
-}
-
-  static async chat(ctx) {
-    const chatText = `💬 *Чат с AI-помощником*
-
-Задавайте вопросы или ищите новости! Я помогу:
-
-• 🔍 Найти свежие новости по любой теме
-• 📊 Показать trending темы
-• 💡 Предложить интересные категории
-• 🤖 Ответить на ваши вопросы
-
-*Примеры запросов:*
-"новости о технологиях"
-"что происходит в спорте"
-"последние политические события"
-"экономические новости России"
-
-🎯 *Просто напишите, что вас интересует!*`;
-
-    await ctx.reply(chatText, {
-      format: 'markdown',
-      attachments: [MainKeyboards.getChatKeyboard()]
-    });
-  }
-
-  static async settings(ctx) {
-    const settingsText = `⚙️ *Настройки бота*
-
-Настройте работу бота под свои предпочтения:
-
-• 🔔 *Уведомления* - управление оповещениями
-• 🌙 *Тема* - смена внешнего вида
-• 📊 *Статистика* - ваша активность
-
-*Дополнительные функции* доступны в веб-версии приложения.`;
-
-    await ctx.reply(settingsText, {
-      format: 'markdown',
-      attachments: [MainKeyboards.getSettingsKeyboard()]
-    });
-  }
-
-  static async admin(ctx) {
-    if (!ctx.isAdmin) {
-      await ctx.reply('❌ У вас нет прав для доступа к админ-панели.');
-      return;
+  async admin(ctx) {
+    if (!ctx.config?.isAdmin?.(ctx.user?.user_id)) {
+      return ctx.reply('⛔ Эта команда доступна только администраторам.');
     }
-
-    const adminText = `🛠️ *Админ-панель InfoPulse*
-
-*Статистика системы:*
-• Пользователей: вычисляется...
-• Активных сессий: вычисляется...
-• Сообщений: вычисляется...
-
-*Управление:*
-• 📊 Просмотр статистики
-• 📢 Массовая рассылка
-• 🔧 Управление настройками`;
-
-    await ctx.reply(adminText, {
+    return ctx.reply(`👑 *Админ-панель*`, {
       format: 'markdown',
-      attachments: [MainKeyboards.getAdminKeyboard()]
+      attachments: [MainKeyboards.getAdminKeyboard()],
     });
-  }
-}
+  },
+
+  async config(ctx) {
+    if (!ctx.config?.isAdmin?.(ctx.user?.user_id)) {
+      return ctx.reply('⛔ Только для администраторов.');
+    }
+    const id = ctx.user?.user_id;
+    return ctx.reply(
+      `🛠 *Config*
+
+Ваш ID: \`${id}\`
+Добавьте его в \`max-bot/.env\` → \`ADMIN_IDS=\` и перезапустите бота, чтобы получить админ-доступ.`,
+      { format: 'markdown' },
+    );
+  },
+};
