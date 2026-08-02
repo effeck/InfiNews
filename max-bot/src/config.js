@@ -1,17 +1,34 @@
-import { config } from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import 'dotenv/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const required = (name) => {
+  const value = process.env[name];
+  if (!value || value === `your_${name.toLowerCase()}_here`) {
+    console.warn(`⚠️  ${name} is not set. Some features may not work.`);
+  }
+  return value;
+};
 
-// Загружаем .env из корневой папки max-bot
-config({ path: resolve(__dirname, '..', '.env') });
+const parseAdminIds = (raw) => {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((id) => Number(id.trim()))
+    .filter((id) => Number.isFinite(id) && id > 0);
+};
 
 export const BOT_CONFIG = {
-  BOT_TOKEN: process.env.BOT_TOKEN,
-  WEB_APP_URL: process.env.WEB_APP_URL || 'http://localhost:3000',
-  ADMIN_IDS: process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(Number) : [],
+  BOT_TOKEN: required('BOT_TOKEN'),
+  WEB_APP_URL: process.env.WEB_APP_URL || 'http://localhost:5173',
+  ADMIN_IDS: parseAdminIds(process.env.ADMIN_IDS),
   NODE_ENV: process.env.NODE_ENV || 'development',
-  IS_DEV: process.env.NODE_ENV === 'development',
+};
+
+// Available quick-access news categories
+export const NEWS_CATEGORIES = {
+  tech: { label: '💻 Технологии', query: 'технологии IT гаджеты ИИ' },
+  sports: { label: '⚽ Спорт', query: 'спорт футбол хоккей' },
+  politics: { label: '🏛 Политика', query: 'политика правительство' },
+  business: { label: '💼 Бизнес', query: 'бизнес экономика финансы' },
+  science: { label: '🔬 Наука', query: 'наука космос открытия' },
+  world: { label: '🌍 Мир', query: 'мир события происшествия' },
 };
