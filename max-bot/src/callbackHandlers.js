@@ -1,239 +1,111 @@
 import { MainKeyboards } from './mainKeyboards.js';
-import { BOT_CONFIG } from './config.js';
+import { NEWS_CATEGORIES } from './config.js';
 import { NewsService } from './services/newsService.js';
 
-export class CallbackHandlers {
-  static async startChat(ctx) {
-    await ctx.reply('💬 *Переходим в чат...*\n\nЗадавайте вопросы или ищите новости! Я готов помочь.', {
-      format: 'markdown',
-      attachments: [MainKeyboards.getChatKeyboard()]
-    });
+const requireAdmin = (ctx) => ctx.config?.isAdmin?.(ctx.user?.user_id);
+
+async function runCategory(ctx, key) {
+  const cat = NEWS_CATEGORIES[key];
+  if (!cat) {
+    return ctx.reply('❌ Неизвестная категория.');
   }
-
-  static async showInfo(ctx) {
-    const infoText = `ℹ️ *О InfoPulse Bot*
-
-*Версия:* 2.0.0
-*Разработчик:* InfoPulse Team
-*Платформа:* MAX Messenger
-
-*Мои возможности:*
-• 🤖 AI-поиск новостей
-• 🔍 Доступ к 70,000+ источникам
-• 📰 Актуальные новости в реальном времени
-• 💬 Умные ответы на вопросы
-
-*Технологии:*
-• NewsAPI для агрегации новостей
-• AI-алгоритмы для понимания запросов
-• MAX Bot API для интеграции
-
-💡 *Просто напишите тему, и я найду свежие новости!*`;
-
-    await ctx.reply(infoText, {
-      format: 'markdown',
-      attachments: [MainKeyboards.getMainMenu()]
-    });
-  }
-
-  static async showSettings(ctx) {
-    await ctx.reply('⚙️ *Настройки бота*\n\nВыберите параметр для настройки:', {
-      attachments: [MainKeyboards.getSettingsKeyboard()]
-    });
-  }
-
-  static async showAdmin(ctx) {
-  console.log('🛠️ [SHOW_ADMIN] Полная информация:', {
-    userId: ctx.user?.user_id,
-    effectiveUserId: ctx.effectiveUserId,
-    isAdmin: ctx.isAdmin,
-    update: ctx.update
-  });
-
-  if (!ctx.isAdmin) {
-    const debugInfo = `❌ У вас нет прав для доступа к админ-панели.
-
-*Отладочная информация:*
-• Ваш ID: ${ctx.user?.user_id}
-• Effective ID: ${ctx.effectiveUserId}
-• Админы в config: ${BOT_CONFIG.ADMIN_IDS.join(', ')}
-• Тип события: ${ctx.update?.type}
-
-Проверьте:
-1. Правильность ID в .env файле
-2. Что перезапустили бота после изменений
-3. Что используете тот же аккаунт`;
-
-    await ctx.reply(debugInfo, { format: 'markdown' });
-    return;
-  }
-
-  const adminText = `🛠️ *Админ-панель InfoPulse*
-
-*Ваш ID:* ${ctx.effectiveUserId}
-*Статус:* ✅ Администратор
-
-Доступ разрешен! Выберите раздел:`;
-
-  await ctx.reply(adminText, {
-    format: 'markdown',
-    attachments: [MainKeyboards.getAdminKeyboard()]
-  });
-}
-
-  static async searchNews(ctx) {
-    await ctx.reply('🔍 *Поиск новостей*\n\nВведите тему для поиска, например:\n• "искусственный интеллект"\n• "чемпионат мира"\n• "экономические новости"\n• "технологические стартапы"', {
-      format: 'markdown'
-    });
-  }
-
-  static async showTrends(ctx) {
-    await ctx.reply('📊 *Трендовые темы*\n\nАктуальные темы сейчас:\n• 🤖 Искусственный интеллект\n• 🌍 Климатические изменения\n• 💰 Экономические новости\n• ⚽ Спортивные события\n• 🏛️ Политические события\n\n💡 *Напишите любую из этих тем для подробного поиска!*', {
-      format: 'markdown'
-    });
-  }
-
-  static async searchNews(ctx) {
-  await ctx.reply('🔍 *Поиск новостей*\n\nВведите тему для поиска, например:\n• "искусственный интеллект"\n• "чемпионат мира"\n• "экономические новости"\n• "технологические стартапы"\n\n💡 *Совет:* Используйте конкретные ключевые слова для лучших результатов!', {
-    format: 'markdown'
-  });
-}
-
-static async showTrends(ctx) {
+  await ctx.reply(`🔎 Ищу новости: *${cat.label}*...`, { format: 'markdown' });
   try {
-    await ctx.reply('📊 *Ищу trending новости...*');
-    
-    const trendingArticles = await NewsService.getTrendingNews();
-    
-    if (trendingArticles.length > 0) {
-      const trendingText = `📊 *Трендовые новости сейчас*\n\n` +
-        trendingArticles.map((article, index) => 
-          NewsService.formatArticle(article, index)
-        ).join('\n\n' + '─'.repeat(30) + '\n\n') +
-        `\n\n💡 *Нажмите на ссылки чтобы читать полные статьи!*`;
-      
-      await ctx.reply(trendingText, { 
-        format: 'markdown',
-        attachments: [MainKeyboards.getChatKeyboard()]
-      });
-    } else {
-      await ctx.reply('❌ Не удалось загрузить trending новости. Попробуйте использовать поиск вручную!', {
-        attachments: [MainKeyboards.getChatKeyboard()]
-      });
-    }
-    
-  } catch (error) {
-    console.error('❌ Ошибка при показе трендов:', error);
-    await ctx.reply('❌ Не удалось загрузить trending новости. Попробуйте использовать поиск!', {
-      attachments: [MainKeyboards.getChatKeyboard()]
-    });
-  }
-}
-
-static async showExamples(ctx) {
-  const examplesText = `💡 *Примеры запросов для поиска новостей:*
-
-*Технологии:*
-"искусственный интеллект"
-"новые гаджеты"
-"кибербезопасность"
-"технологические инновации"
-
-*Спорт:*
-"футбольные матчи"
-"олимпийские игры" 
-"спортивные трансферы"
-"чемпионат мира"
-
-*Политика:*
-"выборы 2024"
-"международные отношения"
-"политические реформы"
-"правительственные решения"
-
-*Экономика:*
-"фондовый рынок"
-"криптовалюты"
-"экономические новости"
-"бизнес и финансы"
-
-*Наука:*
-"космические исследования"
-"медицинские открытия"
-"климатические изменения"
-"научные достижения"
-
-🎯 *Просто введите любой запрос - и я найду свежие новости!*`;
-
-  await ctx.reply(examplesText, { format: 'markdown' });
-}
-
-  static async showExamples(ctx) {
-    const examplesText = `💡 *Примеры запросов для чата:*
-
-*Поиск новостей:*
-"новости о технологиях"
-"что нового в науке" 
-"спортивные события сегодня"
-"политические новости недели"
-
-*Конкретные запросы:*
-"искусственный интеллект 2024"
-"экономические новости России"
-"выборы в мире"
-"технологические инновации"
-
-*Общие вопросы:*
-"что ты умеешь?"
-"расскажи о себе"
-"какие новости самые популярные?"
-"помоги найти новости о..."
-
-🎯 *Просто напишите тему - и я найду актуальные новости!*`;
-
-    await ctx.reply(examplesText, { format: 'markdown' });
-  }
-
-  static async backToMain(ctx) {
-    await ctx.reply('🔄 *Возвращаемся в главное меню...*', {
+    const articles = await NewsService.searchNews(cat.query, 5);
+    return ctx.reply(NewsService.formatNewsResponse(articles, cat.label), {
       format: 'markdown',
-      attachments: [MainKeyboards.getMainMenu()]
+      attachments: [MainKeyboards.getCategoryKeyboard()],
     });
-  }
-
-  static async toggleNotifications(ctx) {
-    await ctx.reply('🔔 Настройки уведомлений будут доступны в следующем обновлении!');
-  }
-
-  static async changeTheme(ctx) {
-    await ctx.reply('🌙 Смена темы будет доступна в следующем обновлении!');
-  }
-
-  static async showStats(ctx) {
-    await ctx.reply('📊 Статистика будет доступна после подключения базы данных.');
-  }
-
-  static async adminStats(ctx) {
-    if (!ctx.isAdmin) {
-      await ctx.reply('❌ Доступ запрещен.');
-      return;
-    }
-    await ctx.reply('📊 Функция статистики будет доступна после настройки аналитики.');
-  }
-
-  static async adminBroadcast(ctx) {
-    if (!ctx.isAdmin) {
-      await ctx.reply('❌ Доступ запрещен.');
-      return;
-    }
-    await ctx.reply('📢 Функция рассылки будет доступна после настройки базы данных.');
-  }
-
-  static async adminManage(ctx) {
-    if (!ctx.isAdmin) {
-      await ctx.reply('❌ Доступ запрещен.');
-      return;
-    }
-    await ctx.reply('🔧 Панель управления будет доступна в следующем обновлении.');
+  } catch (e) {
+    console.error('❌ category error:', e);
+    return ctx.reply('❌ Не удалось получить новости. Попробуйте позже.');
   }
 }
+
+export const CallbackHandlers = {
+  startChat: (ctx) =>
+    ctx.reply('💬 *AI-чат*\n\nНапишите любой запрос — найду новости.', {
+      format: 'markdown',
+      attachments: [MainKeyboards.getCategoryKeyboard()],
+    }),
+
+  showInfo: (ctx) =>
+    ctx.reply(
+      'ℹ️ *ИнфоПульс* — новостной агрегатор.\nИсточник: gnews.io (или demo). Поддержка категорий и поиска.',
+      { format: 'markdown', attachments: [MainKeyboards.getMainKeyboard()] },
+    ),
+
+  showSettings: (ctx) =>
+    ctx.reply('⚙️ *Настройки*', {
+      format: 'markdown',
+      attachments: [MainKeyboards.getSettingsKeyboard(true)],
+    }),
+
+  showAdmin: (ctx) => {
+    if (!requireAdmin(ctx)) {
+      return ctx.reply('⛔ Только для администраторов.');
+    }
+    return ctx.reply('👑 *Админ-панель*', {
+      format: 'markdown',
+      attachments: [MainKeyboards.getAdminKeyboard()],
+    });
+  },
+
+  backToMain: (ctx) =>
+    ctx.reply('🏠 Главное меню', {
+      attachments: [MainKeyboards.getMainKeyboard()],
+    }),
+
+  searchNews: (ctx) =>
+    ctx.reply('🔍 Напишите ваш запрос обычным текстом.', {
+      attachments: [MainKeyboards.getChatKeyboard()],
+    }),
+
+  showTrends: (ctx) => runCategory(ctx, 'tech'),
+
+  showExamples: (ctx) =>
+    ctx.reply(
+      '*Примеры запросов:*\n• искусственный интеллект\n• космос\n• криптовалюта\n• спорт сегодня\n• климат',
+      { format: 'markdown', attachments: [MainKeyboards.getChatKeyboard()] },
+    ),
+
+  toggleNotifications: (ctx) =>
+    ctx.reply('🔔 Уведомления: Вкл (заглушка)', {
+      attachments: [MainKeyboards.getSettingsKeyboard(false)],
+    }),
+
+  changeTheme: (ctx) =>
+    ctx.reply('🎨 Тема: светлая (заглушка)', {
+      attachments: [MainKeyboards.getSettingsKeyboard(true)],
+    }),
+
+  showStats: (ctx) =>
+    ctx.reply(
+      '📊 *Статистика* (демо)\nПользователей: 0\nЗапросов: 0',
+      { format: 'markdown', attachments: [MainKeyboards.getSettingsKeyboard(true)] },
+    ),
+
+  adminStats: (ctx) => {
+    if (!requireAdmin(ctx)) return ctx.reply('⛔ Только для админов.');
+    return ctx.reply('📊 *Admin stats*\n\n(заглушка — добавьте метрики позже)', {
+      format: 'markdown',
+      attachments: [MainKeyboards.getAdminKeyboard()],
+    });
+  },
+
+  adminBroadcast: (ctx) => {
+    if (!requireAdmin(ctx)) return ctx.reply('⛔ Только для админов.');
+    return ctx.reply('📢 *Рассылка* — отправьте текст следующим сообщением.', {
+      format: 'markdown',
+      attachments: [MainKeyboards.getAdminKeyboard()],
+    });
+  },
+
+  adminManage: (ctx) => {
+    if (!requireAdmin(ctx)) return ctx.reply('⛔ Только для админов.');
+    return ctx.reply('⚙️ *Управление* — (заглушка)', {
+      format: 'markdown',
+      attachments: [MainKeyboards.getAdminKeyboard()],
+    });
+  },
+};
