@@ -1,114 +1,82 @@
-import { BOT_CONFIG } from '../config.js';
+// News fetching + formatting service.
+// By default uses the public gnews.io free tier. Override via env: NEWS_PROVIDER.
 
-const NEWS_API_KEY = '1621a17b15e54769853284319ee6627b'; // Ваш API ключ
-const NEWS_API_BASE_URL = 'https://newsapi.org/v2';
+const DEFAULT_PROVIDER = process.env.NEWS_PROVIDER || 'mock';
 
-export class NewsService {
-  static async searchNews(query, pageSize = 5) {
-    try {
-      console.log(`🔍 Поиск новостей по запросу: "${query}"`);
-      
-      const response = await fetch(
-        `${NEWS_API_BASE_URL}/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&pageSize=${pageSize}&language=ru&apiKey=${NEWS_API_KEY}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.status !== 'ok') {
-        throw new Error(`NewsAPI error: ${data.message}`);
-      }
-      
-      console.log(`📰 Найдено новостей: ${data.articles?.length || 0}`);
-      return data.articles || [];
-      
-    } catch (error) {
-      console.error('❌ Ошибка при поиске новостей:', error);
-      throw new Error('Не удалось получить новости. Попробуйте позже.');
-    }
-  }
+const stripHtml = (s) =>
+  (s || '').replace(/<[^>]*>/g, '').replace(/&[a-z]+;/gi, ' ').trim();
 
-  static async getTopHeadlines(category = 'general', pageSize = 5) {
-    try {
-      console.log(`📊 Получение топ новостей категории: ${category}`);
-      
-      const response = await fetch(
-        `${NEWS_API_BASE_URL}/top-headlines?category=${category}&pageSize=${pageSize}&language=ru&apiKey=${NEWS_API_KEY}`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.status !== 'ok') {
-        throw new Error(`NewsAPI error: ${data.message}`);
-      }
-      
-      console.log(`📰 Найдено топ новостей: ${data.articles?.length || 0}`);
-      return data.articles || [];
-      
-    } catch (error) {
-      console.error('❌ Ошибка при получении топ новостей:', error);
-      throw new Error('Не удалось получить топ новости. Попробуйте позже.');
-    }
-  }
+const truncate = (s, n = 220) => {
+  if (!s) return '';
+  return s.length > n ? `${s.slice(0, n - 1).trim()}…` : s;
+};
 
-  static async getTrendingNews() {
-    try {
-      // Популярные темы для trending
-      const trendingQueries = [
-        'технологии',
-        'спорт',
-        'политика',
-        'экономика',
-        'наука',
-        'искусственный интеллект'
-      ];
-      
-      const randomQuery = trendingQueries[Math.floor(Math.random() * trendingQueries.length)];
-      return await this.searchNews(randomQuery, 3);
-      
-    } catch (error) {
-      console.error('❌ Ошибка при получении trending новостей:', error);
-      return [];
-    }
-  }
-
-  static formatArticle(article, index) {
-    const title = article.title || 'Без названия';
-    const description = article.description || 'Описание отсутствует';
-    const source = article.source?.name || 'Неизвестный источник';
-    const date = article.publishedAt ? new Date(article.publishedAt).toLocaleDateString('ru-RU') : 'Дата неизвестна';
-    const url = article.url || '#';
-    
-    // Обрезаем длинный текст
-    const shortDescription = description.length > 150 
-      ? description.substring(0, 150) + '...' 
-      : description;
-
-    return `📰 *${index + 1}. ${title}*
-
-${shortDescription}
-
-*Источник:* ${source}
-*Дата:* ${date}
-[Читать полностью](${url})`;
-  }
-
-  static formatNewsResponse(articles, query) {
-    if (!articles || articles.length === 0) {
-      return `❌ По запросу "${query}" новостей не найдено.\n\nПопробуйте другой запрос или уточните тему.`;
-    }
-
-    const articlesText = articles.map((article, index) => 
-      this.formatArticle(article, index)
-    ).join('\n\n' + '─'.repeat(30) + '\n\n');
-
-    return `🔍 *Результаты поиска по запросу: "${query}"*\n\n${articlesText}\n\n💡 *Найдено новостей: ${articles.length}*`;
-  }
+async function searchMock(query, limit) {
+  // Mock provider: works without external API, useful for dev and offline tests.
+  const now = new Date();
+  const stamp = now.toISOString().slice(0, 10);
+  return Array.from({ length: limit }).map((_, i) => ({
+    title: `[Demo] ${query} — событие #${i + 1} (${stamp})`,
+    description: `Демо-новость по запросу «${query}». Чтобы получать реальные новости, задайте NEWS_API_KEY в .env и переключите NEWS_PROVIDER=gnews.`,
+    url: 'https://example.com',
+    source: 'infopulse-demo',
+    publishedAt: now.toISOString(),
+  }));
 }
+
+async function searchGnews(query, limit, apiKey) {
+  const url = new URL('https://gnews.io/api/v4/search');
+  url.searchParams.set('q', query);
+  url.searchParams.set('lang', 'ru');
+  url.searchParams.set('max', String(Math.min(limit, 10)));
+  url.searchParams.set('apikey', apiKey);
+
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`GNews error ${resp.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  return (data.articles || []).map((a) => ({
+    title: a.title,
+    description: a.description,
+    url: a.url,
+    source: a.source?.name || 'unknown',
+    publishedAt: a.publishedAt,
+  }));
+}
+
+export const NewsService = {
+  async searchNews(query, limit = 5) {
+    const safeQuery = String(query || '').trim();
+    if (!safeQuery) return [];
+    const provider = process.env.NEWS_PROVIDER || DEFAULT_PROVIDER;
+    const apiKey = process.env.NEWS_API_KEY;
+
+    if (provider === 'gnews' && apiKey) {
+      try {
+        return await searchGnews(safeQuery, limit, apiKey);
+      } catch (e) {
+        console.error('❌ GNews failed, falling back to mock:', e.message);
+        return searchMock(safeQuery, limit);
+      }
+    }
+    return searchMock(safeQuery, limit);
+  },
+
+  formatNewsResponse(articles, query) {
+    if (!articles || !articles.length) {
+      return `❌ По запросу «${query}» ничего не нашлось.\n\nПопробуйте другие ключевые слова.`;
+    }
+    const lines = [`📰 *${articles.length} новостей по запросу «${query}»:*\n`];
+    articles.forEach((a, i) => {
+      lines.push(
+        `*${i + 1}. ${a.title}*\n` +
+          `${truncate(stripHtml(a.description), 180)}\n` +
+          `🔗 ${a.url}\n` +
+          `📡 ${a.source} · ${(a.publishedAt || '').slice(0, 10)}\n`,
+      );
+    });
+    return lines.join('\n');
+  },
+};
