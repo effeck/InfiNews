@@ -1,55 +1,77 @@
-import { Keyboard } from '@maxhub/max-bot-api';
+// Inline keyboards (buttons) used throughout the bot.
+// @maxhub/max-bot-api expects attachments of type 'inline_keyboard'.
 
-export class MainKeyboards {
-  static getMainMenu() {
-    return Keyboard.inlineKeyboard([
+const kb = (buttons) => [{ type: 'inline_keyboard', payload: { buttons } }];
+
+export const MainKeyboards = {
+  getMainKeyboard() {
+    return kb([
       [
-        Keyboard.button.callback('💬 Чат с ботом', 'start_chat'),
-        Keyboard.button.callback('ℹ️ О боте', 'show_info'),
+        { type: 'callback', text: '💬 AI-чат', payload: 'start_chat' },
+        { type: 'callback', text: 'ℹ️ О боте', payload: 'show_info' },
       ],
       [
-        Keyboard.button.callback('⚙️ Настройки', 'show_settings'),
-        Keyboard.button.callback('🛠️ Админка', 'show_admin'),
-      ]
+        { type: 'callback', text: '⚙️ Настройки', payload: 'show_settings' },
+        { type: 'callback', text: '👑 Админка', payload: 'show_admin' },
+      ],
     ]);
-  }
+  },
 
-  static getChatKeyboard() {
-    return Keyboard.inlineKeyboard([
+  getChatKeyboard() {
+    return kb([
       [
-        Keyboard.button.callback('🔍 Поиск новостей', 'search_news'),
-        Keyboard.button.callback('📰 Тренды', 'show_trends'),
+        { type: 'callback', text: '📈 Тренды', payload: 'show_trends' },
+        { type: 'callback', text: '💡 Примеры', payload: 'show_examples' },
       ],
       [
-        Keyboard.button.callback('💡 Примеры запросов', 'show_examples'),
-        Keyboard.button.callback('◀️ Главное меню', 'back_to_main'),
-      ]
+        { type: 'callback', text: '🔍 Новый поиск', payload: 'search_news' },
+        { type: 'callback', text: '🏠 В меню', payload: 'back_to_main' },
+      ],
     ]);
-  }
+  },
 
-  static getSettingsKeyboard() {
-    return Keyboard.inlineKeyboard([
+  getCategoryKeyboard() {
+    return kb([
       [
-        Keyboard.button.callback('🔔 Уведомления', 'toggle_notifications'),
-        Keyboard.button.callback('🌙 Тема', 'change_theme'),
+        { type: 'callback', text: '💻 Технологии', payload: 'cat_tech' },
+        { type: 'callback', text: '⚽ Спорт', payload: 'cat_sports' },
       ],
       [
-        Keyboard.button.callback('📊 Статистика', 'show_stats'),
-        Keyboard.button.callback('◀️ Назад', 'back_to_main'),
-      ]
-    ]);
-  }
-
-  static getAdminKeyboard() {
-    return Keyboard.inlineKeyboard([
-      [
-        Keyboard.button.callback('📊 Статистика', 'admin_stats'),
-        Keyboard.button.callback('📢 Рассылка', 'admin_broadcast'),
+        { type: 'callback', text: '🏛 Политика', payload: 'cat_politics' },
+        { type: 'callback', text: '💼 Бизнес', payload: 'cat_business' },
       ],
       [
-        Keyboard.button.callback('🔧 Управление', 'admin_manage'),
-        Keyboard.button.callback('◀️ Главное меню', 'back_to_main'),
-      ]
+        { type: 'callback', text: '🔬 Наука', payload: 'cat_science' },
+        { type: 'callback', text: '🌍 Мир', payload: 'cat_world' },
+      ],
+      [{ type: 'callback', text: '🏠 В меню', payload: 'back_to_main' }],
     ]);
-  }
-}
+  },
+
+  getSettingsKeyboard(notificationsOn) {
+    const notifText = notificationsOn
+      ? '🔔 Уведомления: Вкл'
+      : '🔕 Уведомления: Выкл';
+    return kb([
+      [{ type: 'callback', text: notifText, payload: 'toggle_notifications' }],
+      [
+        { type: 'callback', text: '🎨 Сменить тему', payload: 'change_theme' },
+        { type: 'callback', text: '📊 Статистика', payload: 'show_stats' },
+      ],
+      [{ type: 'callback', text: '🏠 В меню', payload: 'back_to_main' }],
+    ]);
+  },
+
+  getAdminKeyboard() {
+    return kb([
+      [
+        { type: 'callback', text: '📊 Статистика', payload: 'admin_stats' },
+        { type: 'callback', text: '📢 Рассылка', payload: 'admin_broadcast' },
+      ],
+      [
+        { type: 'callback', text: '⚙️ Управление', payload: 'admin_manage' },
+        { type: 'callback', text: '🏠 В меню', payload: 'back_to_main' },
+      ],
+    ]);
+  },
+};
