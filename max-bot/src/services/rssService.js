@@ -1,8 +1,7 @@
-// RSS service — fetches news from configured feeds in parallel, normalizes
-// items, filters out ancient entries and applies a per-feed cap.
-//
-// We use rss-parser to handle the XML edge cases. Each feed has its own
-// AbortController-bound timeout so a single slow feed never blocks others.
+// RSS service for InfiNews — fetches news from configured feeds in
+// parallel, normalizes items, filters out ancient entries and applies a
+// per-feed cap. Each feed has its own timeout, so a single slow feed
+// never blocks the whole request.
 
 import Parser from 'rss-parser';
 import { RSS_CONFIG, RSS_SOURCES, EXTRA_RSS_FEEDS } from '../config.js';
@@ -33,7 +32,7 @@ const stripHtml = (s) =>
 const truncate = (s, n = 280) => (s && s.length > n ? `${s.slice(0, n - 1).trim()}…` : s);
 
 const withinMaxAge = (isoDate) => {
-  if (!isoDate) return true; // RSS without dates — be permissive.
+  if (!isoDate) return true;
   const t = Date.parse(isoDate);
   if (!Number.isFinite(t)) return true;
   const ageMs = Date.now() - t;
@@ -71,7 +70,7 @@ const fetchOne = async (feedUrl) => {
     }).filter((a) => a.title && a.url && withinMaxAge(a.publishedAt));
     return { ok: true, feedUrl, items };
   } catch (e) {
-    console.warn(`⚠️  RSS fetch failed: ${feedUrl} — ${e.message}`);
+    console.warn(`⚠️  InfiNews RSS fetch failed: ${feedUrl} — ${e.message}`);
     return { ok: false, feedUrl, error: e.message, items: [] };
   }
 };
@@ -120,14 +119,12 @@ export const rssService = {
   },
 
   async searchByQuery(query, opts = {}) {
-    // Naive search: pull from "general" + relevant category if matched.
     const q = String(query || '').toLowerCase().trim();
     if (!q) return this.fetchByCategory('general');
 
     const all = await this.fetchByCategory('general');
     if (!q) return all;
 
-    // Lightweight keyword scoring.
     const tokens = q.split(/\s+/).filter((t) => t.length > 1);
     const scored = all.map((a) => {
       const hay = `${a.title} ${a.description}`.toLowerCase();
