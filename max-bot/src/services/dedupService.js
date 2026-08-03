@@ -1,5 +1,5 @@
-// Dedup service — drops articles that have already been shown to users
-// (per the bot) within the configured TTL window.
+// Dedup service (InfiNews) — drops articles that have already been shown
+// to users (per the bot) within the configured TTL window.
 //
 // Strategy: combination of two fingerprints:
 //   1) URL-based exact match (highest priority).
@@ -54,7 +54,7 @@ const jaccard = (a, b) => {
 
 class DedupService {
   constructor() {
-    this.items = []; // {url, title, firstSeen}
+    this.items = [];
     this._loaded = false;
     this._saving = null;
     this._ensureDir();
@@ -67,7 +67,7 @@ class DedupService {
     try {
       fs.mkdirSync(dir, { recursive: true });
     } catch (e) {
-      if (e.code !== 'EEXIST') console.error('dedup mkdir error:', e.message);
+      if (e.code !== 'EEXIST') console.error('InfiNews dedup mkdir error:', e.message);
     }
   }
 
@@ -82,7 +82,7 @@ class DedupService {
         }
       }
     } catch (e) {
-      console.warn('⚠️  Не удалось прочитать кэш дедупа, начинаем с пустого:', e.message);
+      console.warn('⚠️  InfiNews: не удалось прочитать кэш дедупа, начинаем с пустого:', e.message);
       this.items = [];
     }
     this._gc();
@@ -112,7 +112,7 @@ class DedupService {
     const before = this.items.length;
     this.items = this.items.filter((it) => it.firstSeen >= cutoff);
     if (this.items.length !== before) {
-      this._save().catch((e) => console.warn('dedup save error:', e.message));
+      this._save().catch((e) => console.warn('InfiNews dedup save error:', e.message));
     }
   }
 
@@ -145,11 +145,10 @@ class DedupService {
       title: article.title || '',
       firstSeen: Date.now(),
     });
-    // Cap in-memory size; keep last 5000.
     if (this.items.length > 5000) {
       this.items = this.items.slice(-5000);
     }
-    this._save().catch((e) => console.warn('dedup save error:', e.message));
+    this._save().catch((e) => console.warn('InfiNews dedup save error:', e.message));
   }
 
   filterUnique(articles) {
