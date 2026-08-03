@@ -1,12 +1,12 @@
 import { Bot } from '@maxhub/max-bot-api';
-import { BOT_CONFIG, NEWS_CATEGORIES } from './src/config.js';
+import { BOT_CONFIG, RSS_SOURCES, GIGACHAT_CONFIG } from './src/config.js';
 import { CommandHandlers } from './src/commandHandlers.js';
 import { CallbackHandlers } from './src/callbackHandlers.js';
 import { adminMiddleware } from './src/adminMiddleware.js';
 import { MainKeyboards } from './src/mainKeyboards.js';
-import { NewsService } from './src/services/newsService.js';
+import { newsService } from './src/services/newsService.js';
 
-console.log('🔧 Инициализация InfoPulse MAX Bot...');
+console.log('🔧 Инициализация InfiNews MAX Bot...');
 
 if (!BOT_CONFIG.BOT_TOKEN) {
   console.error('❌ BOT_TOKEN is missing. Set it in max-bot/.env');
@@ -18,15 +18,17 @@ const bot = new Bot(BOT_CONFIG.BOT_TOKEN);
 bot.use(adminMiddleware);
 
 bot.use(async (ctx, next) => {
-  console.log('📨 Event:', {
-    type: ctx.update?.type,
-    userId: ctx.user?.user_id,
-    text: ctx.message?.body?.text,
-  });
+  if (process.env.LOG_EVENTS === '1') {
+    console.log('📨 Event:', {
+      type: ctx.update?.type,
+      userId: ctx.user?.user_id,
+      text: ctx.message?.body?.text,
+    });
+  }
   return next();
 });
 
-bot.api.setMyCommands([
+const commands = [
   { name: 'start', description: 'Запустить бота' },
   { name: 'help', description: 'Помощь и справка' },
   { name: 'chat', description: 'Чат с AI-помощником' },
@@ -35,10 +37,16 @@ bot.api.setMyCommands([
   { name: 'politics', description: 'Политические новости' },
   { name: 'business', description: 'Бизнес-новости' },
   { name: 'science', description: 'Научные новости' },
+  { name: 'world', description: 'Мировые новости' },
+  { name: 'digest', description: 'Дайджест по всем категориям' },
+  { name: 'sources', description: 'Список RSS-источников' },
+  { name: 'ask', description: 'Спросить AI про статью (/ask <id> <вопрос>)' },
+  { name: 'settings', description: 'Настройки' },
   { name: 'myid', description: 'Показать мой ID' },
-  { name: 'settings', description: 'Настройки бота' },
   { name: 'admin', description: 'Админ-панель' },
-]).then(() => console.log('✅ Команды бота установлены'))
+];
+bot.api.setMyCommands(commands)
+  .then(() => console.log('✅ Команды бота установлены'))
   .catch((e) => console.error('❌ Ошибка установки команд:', e));
 
 // ---------- Commands ----------
@@ -48,30 +56,33 @@ bot.command('chat', (ctx) => CommandHandlers.chat(ctx));
 bot.command('settings', (ctx) => CommandHandlers.settings(ctx));
 bot.command('admin', (ctx) => CommandHandlers.admin(ctx));
 bot.command('config', (ctx) => CommandHandlers.config(ctx));
+bot.command('digest', (ctx) => CommandHandlers.digest(ctx));
+bot.command('sources', (ctx) => CommandHandlers.sources(ctx));
+bot.command('reset_dedup', (ctx) => CommandHandlers.resetDedup(ctx));
+bot.command('ask', (ctx) => CommandHandlers.ask(ctx));
 
 bot.command('myid', (ctx) => {
-  const userId = ctx.user?.user_id;
-  const chatId = ctx.chat?.chat_id;
   return ctx.reply(
-    `👤 *Ваши идентификаторы:*\n\n*User ID:* \`${userId}\`\n*Chat ID:* \`${chatId}\`\n*Username:* ${ctx.user?.username || 'не установлен'}`,
+    `*👤 Ваши идентификаторы:*\n\n*User ID:* \`${ctx.user?.user_id}\`\n*Chat ID:* \`${ctx.chat?.chat_id}\`\n*Username:* ${ctx.user?.username || 'не установлен'}`,
     { format: 'markdown' },
   );
 });
 
-// Категории быстрого поиска
-for (const key of Object.keys(NEWS_CATEGORIES)) {
+// Categories as /commands
+for (const key of Object.keys(RSS_SOURCES)) {
   bot.command(key, async (ctx) => {
-    const cat = NEWS_CATEGORIES[key];
+    const cat = RSS_SOURCES[key];
+    if (!cat) return;
     await ctx.reply(`🔎 Ищу новости: *${cat.label}*...`, { format: 'markdown' });
     try {
-      const articles = await NewsService.searchNews(cat.query, 5);
-      return ctx.reply(NewsService.formatNewsResponse(articles, cat.label), {
+      const { articles } = await newsService.search(key, { limit: 7 });
+      return ctx.reply(newsService.formatResponse(articles, `*${cat.label}*`), {
         format: 'markdown',
         attachments: [MainKeyboards.getCategoryKeyboard()],
       });
     } catch (e) {
       console.error('❌ category error:', e);
-      return ctx.reply('❌ Не удалось получить новости. Попробуйте позже.');
+      return ctx.reply('❌ Не удалось получить новости. Попробуй позже.');
     }
   });
 }
@@ -93,30 +104,29 @@ const callbackActions = {
   admin_broadcast: CallbackHandlers.adminBroadcast,
   admin_manage: CallbackHandlers.adminManage,
 };
-
 for (const [action, handler] of Object.entries(callbackActions)) {
   bot.action(action, (ctx) => handler(ctx));
 }
 
-// Категории как callback
-for (const key of Object.keys(NEWS_CATEGORIES)) {
+// Category callbacks
+for (const key of Object.keys(RSS_SOURCES)) {
   bot.action(`cat_${key}`, async (ctx) => {
-    const cat = NEWS_CATEGORIES[key];
+    const cat = RSS_SOURCES[key];
     await ctx.reply(`🔎 Ищу новости: *${cat.label}*...`, { format: 'markdown' });
     try {
-      const articles = await NewsService.searchNews(cat.query, 5);
-      return ctx.reply(NewsService.formatNewsResponse(articles, cat.label), {
+      const { articles } = await newsService.search(key, { limit: 7 });
+      return ctx.reply(newsService.formatResponse(articles, `*${cat.label}*`), {
         format: 'markdown',
         attachments: [MainKeyboards.getCategoryKeyboard()],
       });
     } catch (e) {
-      console.error('❌ category callback error:', e);
-      return ctx.reply('❌ Не удалось получить новости. Попробуйте позже.');
+      console.error('❌ category cb error:', e);
+      return ctx.reply('❌ Не удалось получить новости.');
     }
   });
 }
 
-// ---------- Text messages ----------
+// ---------- Text messages (free-form search) ----------
 bot.on('message_created', async (ctx) => {
   const message = ctx.message;
   const text = message?.body?.text;
@@ -126,15 +136,15 @@ bot.on('message_created', async (ctx) => {
   await ctx.reply(`🔍 Ищу новости по запросу: «${userMessage}»...`);
 
   try {
-    const articles = await NewsService.searchNews(userMessage, 5);
-    if (articles && articles.length) {
-      return ctx.reply(NewsService.formatNewsResponse(articles, userMessage), {
+    const { articles } = await newsService.search(userMessage, { limit: 7 });
+    if (articles.length) {
+      return ctx.reply(newsService.formatResponse(articles, `*🔍 ${userMessage}*`), {
         format: 'markdown',
         attachments: [MainKeyboards.getChatKeyboard()],
       });
     }
     return ctx.reply(
-      `❌ По запросу «${userMessage}» новостей не нашлось.\n\nПопробуйте другие ключевые слова.`,
+      `❌ По запросу «${userMessage}» ничего нового не нашлось.\n\nПопробуй другие ключевые слова.`,
       { attachments: [MainKeyboards.getChatKeyboard()] },
     );
   } catch (e) {
@@ -144,11 +154,10 @@ bot.on('message_created', async (ctx) => {
 });
 
 bot.on('bot_started', (ctx) => CommandHandlers.start(ctx));
-
 bot.catch((err) => console.error('❌ Bot error:', err));
 
 // ---------- Start ----------
-console.log('🚀 Запуск InfoPulse MAX Bot...');
+console.log('🚀 Запуск InfiNews MAX Bot...');
 bot.start()
   .then(() => console.log('✅ Бот подключен к серверам MAX!'))
   .catch((err) => {
