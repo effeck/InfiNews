@@ -1,6 +1,7 @@
 {
-  "name": "infopulse-max-bot",
+  "name": "infinews-bot",
   "version": "1.0.0",
+  "description": "InfiNews — новостной MAX-бот с GigaChat AI (RSS + дедуп + саммари)",
   "type": "module",
   "scripts": {
     "dev": "nodemon bot.js",
