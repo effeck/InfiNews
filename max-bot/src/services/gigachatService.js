@@ -1,4 +1,4 @@
-// GigaChat integration (Sber) — OAuth2 + chat completions.
+// InfiNews · GigaChat integration (Sber) — OAuth2 + chat completions.
 // Token is cached in-memory until expiry. On 401 we refresh once.
 //
 // Endpoints (defaults are the public ones for physical persons, scope GIGACHAT_API_PERS):
@@ -13,7 +13,7 @@ let _token = null;
 let _tokenExpiresAt = 0;
 let _inflight = null;
 
-const TOKEN_SAFETY_MS = 30_000; // refresh 30s before expiry
+const TOKEN_SAFETY_MS = 30_000;
 
 const needsToken = () => !_token || Date.now() >= _tokenExpiresAt - TOKEN_SAFETY_MS;
 
@@ -98,7 +98,6 @@ async function chat(messages, opts = {}) {
 
   let resp = await doRequest(token);
   if (resp.status === 401) {
-    // refresh once
     _token = null;
     const fresh = await ensureToken();
     resp = await doRequest(fresh);
@@ -134,7 +133,7 @@ export const gigachat = {
         { temperature: 0.2, max_tokens: 60 },
       );
     } catch (e) {
-      console.warn('⚠️  GigaChat improveQuery failed:', e.message);
+      console.warn('⚠️  InfiNews: GigaChat improveQuery failed:', e.message);
       return null;
     }
   },
@@ -159,7 +158,7 @@ export const gigachat = {
         { temperature: 0.3, max_tokens: 200 },
       );
     } catch (e) {
-      console.warn('⚠️  GigaChat summarize failed:', e.message);
+      console.warn('⚠️  InfiNews: GigaChat summarize failed:', e.message);
       return null;
     }
   },
@@ -174,7 +173,7 @@ export const gigachat = {
           {
             role: 'system',
             content:
-              'Ты ассистент новостного бота. Тебе дают новость, отвечай по её содержанию коротко и по делу (1-3 предложения). Если в новости нет ответа — так и скажи.',
+              'Ты ассистент новостного бота InfiNews. Тебе дают новость, отвечай по её содержанию коротко и по делу (1-3 предложения). Если в новости нет ответа — так и скажи.',
           },
           {
             role: 'user',
@@ -184,12 +183,11 @@ export const gigachat = {
         { temperature: 0.5, max_tokens: 350 },
       );
     } catch (e) {
-      console.warn('⚠️  GigaChat askAboutArticle failed:', e.message);
+      console.warn('⚠️  InfiNews: GigaChat askAboutArticle failed:', e.message);
       return null;
     }
   },
 
-  /** Invalidate cached token (e.g. on permanent auth failure). */
   invalidateToken() {
     _token = null;
     _tokenExpiresAt = 0;
