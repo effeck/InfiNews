@@ -1,6 +1,6 @@
-// newsService — orchestrates RSS fetching, deduplication, and optional
-// GigaChat enrichment. Also keeps an in-memory LRU of the last N results
-// so the `/ask <id> <question>` command can answer follow-ups.
+// newsService (InfiNews) — orchestrates RSS fetching, deduplication, and
+// optional GigaChat enrichment. Keeps an in-memory LRU of the last N
+// results so the `/ask <id> <question>` command can answer follow-ups.
 
 import { rssService } from './rssService.js';
 import { dedup } from './dedupService.js';
@@ -43,22 +43,20 @@ const formatArticle = (a, idx) => {
   }
   if (meta.length) lines.push(meta.join(' · '));
   lines.push(`🔗 ${a.url}`);
-  if (a.summary) lines.push(`\u{1F9E0} ${escape(a.summary)}`);
+  if (a.summary) lines.push(`\\u{1F9E0} ${escape(a.summary)}`);
   if (a._id) lines.push(`_id: \`${a._id}\``);
-  return lines.join('\n');
+  return lines.join('\\n');
 };
 
 const formatResponse = (articles, header) => {
   if (!articles?.length) {
-    return `${header}\n\nНичего нового не нашлось. Попробуй другую категорию или сбрось кэш: /reset_dedup`;
+    return `${header}\\n\\nНичего нового не нашлось. Попробуй другую категорию или сбрось кэш: /reset_dedup`;
   }
-  // Attach an in-memory id to each article so /ask can reference it.
   const withIds = articles.map((a) => ({ ...a, _id: genId() }));
-  // Persist ids so we can find them in /ask.
   for (const a of withIds) recent.unshift({ id: a._id, article: a, ts: Date.now() });
   while (recent.length > MAX_RECENT) recent.pop();
   const blocks = withIds.map((a, i) => formatArticle(a, i));
-  return `${header}\n\n${blocks.join('\n\n')}`;
+  return `${header}\\n\\n${blocks.join('\\n\\n')}`;
 };
 
 export const newsService = {
