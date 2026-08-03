@@ -24,8 +24,8 @@ const formatDate = (iso) => (iso ? new Date(iso).toLocaleString('ru-RU') : '');
 function Header() {
   return (
     <header className="app-header">
-      <h1>📰 ИнфоПульс</h1>
-      <p>Свежие новости по любому запросу</p>
+      <h1>📰 InfiNews</h1>
+      <p>Свежие новости по любому запросу · MAX-бот с GigaChat AI</p>
     </header>
   );
 }
@@ -104,7 +104,7 @@ function Favorites({ items, onRemove, onClose }) {
   );
 }
 
-const FAV_KEY = 'infopulse:favs';
+const FAV_KEY = 'infinews:favs';
 
 function loadFavs() {
   try {
@@ -131,19 +131,18 @@ function App() {
 
   useEffect(() => saveFavs(favs), [favs]);
 
-  // Demo-режим: тут подключите ваш бэкенд или прокси к gnews.io.
+  // Demo-режим: подключите бэкенд или прокси к gnews.io.
   // Без бэкенда возвращаем заглушки, чтобы UI был живой.
   const fetchNews = async (q) => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: заменить на реальный fetch('/api/news?q=' + encodeURIComponent(q))
       await new Promise((r) => setTimeout(r, 400));
       const items = Array.from({ length: 5 }).map((_, i) => ({
-        title: `Новость по «${q}» №${i + 1}`,
-        description: 'Демо-данные. Подключите NEWS_API_KEY в бэкенде, чтобы получать реальные новости.',
+        title: `InfiNews · «${q}» №${i + 1}`,
+        description: 'Демо-данные. Запустите InfiNews-бот — он показывает реальные новости из RSS.',
         url: 'https://example.com',
-        source: 'infopulse-demo',
+        source: 'infinews-demo',
         publishedAt: new Date().toISOString(),
       }));
       setArticles(items);
